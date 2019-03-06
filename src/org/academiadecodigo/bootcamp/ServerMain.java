@@ -10,7 +10,7 @@ import java.util.ArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-public class ServerMain { // Ver quais propriedades podem passar para metodos locais
+public class ServerMain {
 
 	private ServerSocket server;
 	private ArrayList<ClientConnection> clientConnections;
@@ -29,17 +29,12 @@ public class ServerMain { // Ver quais propriedades podem passar para metodos lo
 
 	private void serverCreation() {
 		Socket clientSocket;
-
 		try {
 			clientSocket = server.accept();
-
 			clientConnection = new ClientConnection(clientSocket);
-
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-
-
 	}
 
 	private void newClient(ClientConnection clientConnection) {
@@ -51,31 +46,22 @@ public class ServerMain { // Ver quais propriedades podem passar para metodos lo
 	private void newThread(ClientConnection clientConnection) {
 
 		ExecutorService cachedPool = Executors.newCachedThreadPool();
-
 		cachedPool.submit(clientConnection);
-
 	}
 
 	private void sendAll(String message) {
 
 		for (ClientConnection client : clientConnections) {
-
 			client.sendMessage(message);
-
 		}
-
 	}
 
 	private void start() {
 		while (true) {
 
 			serverCreation();
-
 			newThread(clientConnection);
-
 			newClient(clientConnection);
-
-
 		}
 	}
 
@@ -83,19 +69,18 @@ public class ServerMain { // Ver quais propriedades podem passar para metodos lo
 	public static void main(String[] args) {
 		ServerMain server = new ServerMain(6060);
 		server.start();
-
 	}
 
 
 	public class ClientConnection implements Runnable {
 
 		private String currentMessage;
-		Socket clientSocket; // talvez possa ser local???
+		private Socket clientSocket;
 		private PrintWriter outputToClient;
 		private BufferedReader inputFromClient;
 		private String nickname;
 
-		private ClientConnection(Socket clientSocket) {  //Implementar o nickname no construtor quando estiver a funcionar
+		private ClientConnection(Socket clientSocket) {
 			this.clientSocket = clientSocket;
 			try {
 				outputToClient = new PrintWriter(clientSocket.getOutputStream(), true);
@@ -103,61 +88,44 @@ public class ServerMain { // Ver quais propriedades podem passar para metodos lo
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
-
-
 		}
 
 		@Override
 		public void run() {
 
-
 			outputToClient.println("What is your nickname?");
 			nickname = chooseName();
 			menu();
-
 			while (!clientSocket.isClosed()) {
 				try {
 					currentMessage = inputFromClient.readLine();
 					if (currentMessage.startsWith("/")) {
-
 						executeCommands(currentMessage);
 					}
-
 					System.out.println(nickname + ": " + currentMessage);
-
 					sendAll(nickname + ": " + currentMessage);
-
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
-
 			}
 		}
 
 		private void sendMessage(String message) {
 			outputToClient.println(message);
-
 		}
 
 		private String chooseName() {
-
 			String name = null;
-
 			try {
-
 				name = inputFromClient.readLine();
-
 				if (name.equals("") || name.equals(" ")) {
-					name = "asshole";
+					name = "Asshole";
 					return name;
 				}
-
-
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
 			return name;
-
 		}
 
 		public String getNickname() {
@@ -172,18 +140,21 @@ public class ServerMain { // Ver quais propriedades podem passar para metodos lo
 				case "/list":
 					showAll();
 					break;
-
+				case "/admin":
+					adminPermissionsCheck();
+					break;
+				case "/commandslist":
+					commandsList();
+					break;
 			}
 		}
 
 		private void closeConnection() {
-
 			try {
 				inputFromClient.close();
 				outputToClient.close();
 				clientSocket.close();
 				System.out.println(chooseName() + " has left the chat");
-
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
@@ -196,6 +167,8 @@ public class ServerMain { // Ver quais propriedades podem passar para metodos lo
 			outputToClient.println("//// This are the commands available to you, hope you enjoy the stay  ////");
 			outputToClient.println("////           If you want to leave the chat use /quit                ////");
 			outputToClient.println("////       If you want to know who is in the chat use /list           ////");
+			outputToClient.println("////        Use /admin to have access to special commands             ////");
+			outputToClient.println("////          /commandslist Shows the available commands              ////");
 			outputToClient.println("//////////////////////////////////////////////////////////////////////////");
 
 
@@ -208,6 +181,42 @@ public class ServerMain { // Ver quais propriedades podem passar para metodos lo
 
 			}
 			sendMessage(list);
+		}
+		private void adminPermissionsCheck(){
+			String password = "academia";
+			outputToClient.println("Please insert password to acess the admin commands");
+			try {
+				if (!inputFromClient.readLine().equals(password)){
+					outputToClient.println("Wrong password, please try again");
+				}
+					adminCommands(currentMessage);
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+
+		private void adminCommands(String adminCommands){
+
+			switch (adminCommands){
+				case "/setnick":
+					outputToClient.println("Please insert a new nickname");
+					try {
+						setNickname(inputFromClient.readLine());
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+			}
+		}
+
+		private void setNickname(String nickname) {
+			this.nickname = nickname;
+		}
+		private void commandsList(){
+			outputToClient.println("/exit: Exits the channel");
+			outputToClient.println("/list; Lists the current users in the chat");
+			outputToClient.println("/commandslist: Shows the available commands");
+			outputToClient.println("/admin: Enables certain commands");
+			outputToClient.println("/admin/setnick: Changes the nickname");
 		}
 	}
 }
